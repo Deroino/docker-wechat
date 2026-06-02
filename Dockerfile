@@ -93,7 +93,10 @@ GROUP_EOF
 RUN printf '#!/bin/sh\nexit 0' > /usr/sbin/policy-rc.d && \
     chmod +x /usr/sbin/policy-rc.d && \
     printf '#!/bin/sh\nexit 0' > /usr/local/bin/systemctl && \
-    chmod +x /usr/local/bin/systemctl
+    chmod +x /usr/local/bin/systemctl && \
+    mkdir -p /var/lib/dpkg/info && \
+    printf '#!/bin/sh\nexit 0\n' > /var/lib/dpkg/info/systemd.postinst && \
+    chmod +x /var/lib/dpkg/info/systemd.postinst
 
 # 配置APT源。默认使用阿里云镜像，避免构建时因地理位置探测误判而切回官方源。
 RUN set -eux; \
