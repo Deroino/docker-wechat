@@ -151,8 +151,10 @@ RUN \
     set -ux; \
     # 彻底移除 systemd.postinst，防止配置错误
     mkdir -p /var/lib/dpkg/info && \
+    # 先删除已有的 diversion（如果存在）
+    dpkg-divert --local --remove /var/lib/dpkg/info/systemd.postinst 2>/dev/null || true && \
     dpkg-divert --local --rename --divert /var/lib/dpkg/info/systemd.postinst.real --add /var/lib/dpkg/info/systemd.postinst 2>/dev/null || true && \
-    rm -f /var/lib/dpkg/info/systemd.postinst && \
+    rm -f /var/lib/dpkg/info/systemd.postinst /var/lib/dpkg/info/systemd.postinst.real && \
     printf '#!/bin/sh\nexit 0\n' > /var/lib/dpkg/info/systemd.postinst && \
     chmod +x /var/lib/dpkg/info/systemd.postinst && \
     { \
