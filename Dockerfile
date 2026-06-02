@@ -149,12 +149,10 @@ COPY temp-packages/. /tmp/packages/
 RUN echo "keyboard-configuration keyboard-configuration/layoutcode string cn" | debconf-set-selections
 RUN \
     set -ux; \
-    # 彻底移除 systemd.postinst，防止配置错误
+    # 彻底禁用 systemd.postinst，防止配置错误
     mkdir -p /var/lib/dpkg/info && \
-    # 先删除已有的 diversion（如果存在）
-    dpkg-divert --local --remove /var/lib/dpkg/info/systemd.postinst 2>/dev/null || true && \
-    dpkg-divert --local --rename --divert /var/lib/dpkg/info/systemd.postinst.real --add /var/lib/dpkg/info/systemd.postinst 2>/dev/null || true && \
-    rm -f /var/lib/dpkg/info/systemd.postinst /var/lib/dpkg/info/systemd.postinst.real && \
+    # 直接覆盖文件内容，确保它永远不会执行实际配置
+    cp -f /var/lib/dpkg/info/systemd.postinst /var/lib/dpkg/info/systemd.postinst.bak 2>/dev/null || true && \
     printf '#!/bin/sh\nexit 0\n' > /var/lib/dpkg/info/systemd.postinst && \
     chmod +x /var/lib/dpkg/info/systemd.postinst && \
     { \
