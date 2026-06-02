@@ -152,10 +152,10 @@ RUN \
     { \
     # 安装 fcitx 输入法框架（使用 --no-install-recommends 避免 systemd 依赖）
     # 忽略 systemd 配置错误，它不影响实际功能
-    apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y --no-install-recommends fcitx fcitx-config-gtk fcitx-frontend-all || true; \
-    dpkg --configure -a || true; \
+    (apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y --no-install-recommends fcitx fcitx-config-gtk fcitx-frontend-all 2>&1 || true); \
+    (dpkg --configure -a 2>&1 || true); \
     # 卸载原有 ibus 输入法框架
-    apt-get purge -y ibus; \
+    (apt-get purge -y ibus 2>&1 || true); \
     # 根据目标平台安装对应架构的搜狗拼音输入法
     if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
         SOGOU_DEB=/tmp/packages/sogou-pinyin-amd64.deb; \
@@ -170,20 +170,20 @@ RUN \
     if [ ! -s "$SOGOU_DEB" ]; then \
         curl -fL --retry 3 --retry-delay 2 -o "$SOGOU_DEB" "$SOGOU_URL"; \
     fi; \
-    dpkg --ignore-depends=lsb-core -i "$SOGOU_DEB" || apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 -f install -y --no-install-recommends || true; \
-    dpkg --configure -a || true; \
+    (dpkg --ignore-depends=lsb-core -i "$SOGOU_DEB" 2>&1 || apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 -f install -y --no-install-recommends 2>&1 || true); \
+    (dpkg --configure -a 2>&1 || true); \
     # 解决可能缺少的依赖
-    apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y --no-install-recommends libqt5qml5 libqt5quick5 libqt5quickwidgets5 qml-module-qtquick2 || true; \
-    dpkg --configure -a || true; \
-    apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y --no-install-recommends libgsettings-qt1 || true; \
-    dpkg --configure -a || true; \
+    (apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y --no-install-recommends libqt5qml5 libqt5quick5 libqt5quickwidgets5 qml-module-qtquick2 2>&1 || true); \
+    (dpkg --configure -a 2>&1 || true); \
+    (apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y --no-install-recommends libgsettings-qt1 2>&1 || true); \
+    (dpkg --configure -a 2>&1 || true); \
     # 安装 im-config（输入法配置工具，fcitx 需要它）
-    apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y --no-install-recommends im-config || true; \
-    dpkg --configure -a || true; \
+    (apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y --no-install-recommends im-config 2>&1 || true); \
+    (dpkg --configure -a 2>&1 || true); \
     } && \
     # 设置默认输入法为 fcitx 并将搜狗输入法设为默认配置文件
     cp /usr/share/applications/fcitx.desktop /etc/xdg/autostart/ && \
-    (im-config -n fcitx || true) && \
+    (which im-config >/dev/null 2>&1 && im-config -n fcitx || true) && \
     mkdir -p /config/xdg/config/fcitx && \
     # 创建完整的fcitx配置文件
     echo -e "[Hotkey]\n# Trigger Input Method\nTriggerKey=ALT_SHIFT_KEY\n# Enumerate Input Method\nEnumerateForwardKeys=CTRL_SHIFT_KEY\nEnumerateBackwardKeys=SHIFT_CTRL_KEY\n# Skip the first input method\nEnumerateSkipFirst=False\n# Toggle embedded preedit\nTogglePreedit=CTRL_ALT_KEY\n# Remind Mode Input Method Switch\nRemindModeDisableKeys=ALT_SHIFT_KEY\n# Switch to first input method\nSwitchToFirstMethodKey=SHIFT_KEY\n# Switch between first and second input method\nSwitchToSecondMethodKey=CTRL_SHIFT_KEY\n\n[Program]\n# Delay in milliseconds for switching between windows\nDelayTimeBeforeFirstIMMethod=25\n# Delay in milliseconds for switching input method\nDelayTimeBeforeSwitchIM=50\n# Share Input Method State Among Windows\nShareStateAmongAllWindows=True\n# Show Input Method Hint After Input method activated\nShowInputMethodHint=True\n# Show Input Method Hint When trigger input method\nShowInputMethodHintTriggerOnly=False\n# Show Input Method Hint Delay in milliseconds\nShowInputMethodHintDelay=500\n# Show first input method indicator\nShowFirstInputMethodIndicator=True\n# Show Current Input Method Name\nShowCurrentInputMethod=True\n# Show Input Method Name When switch input method\nShowInputMethodNameWhenSwitchInFocus=False\n# Show compact input method indicator\nShowCompactInputMethodIndicator=False\n# Show emoji icon on input method indicator\nShowEmojiOnPanel=False\n# Use custom font\nUseCustomFont=False\n# Font for input method indicator\nCustomFont=\n\n[Appearance]\n# Show Input Method Preedit in Application\nShowPreeditInApplication=True\n# Show Input Method Preedit in the top of screen\nShowPreeditInTopWindow=False\n# Show input method panel when preedit is empty\nShowInputMethodPanelWhenPreeditEmpty=False\n# Show input method panel after input method changed\nShowInputMethodPanelAfterChangedOnly=True\n# Center input method panel\nCenterInputMethodPanel=False\n# Show input method panel position relative to the cursor\nShowInputMethodPanelRelativeToCursor=True\n# Show input method panel position\nShowInputMethodPanelPosition=0\n# Input method panel is always horizontal\nHorizontalInputMethodPanel=False\n# Force to show input method panel on the screen of the cursor\nShowInputMethodPanelOnFocusedScreen=True\n# Show Input Method Panel when only one input method\nShowInputMethodPanelWhenOnlyOne=False\n# Show compact input method panel\nShowCompactInputMethodPanel=False\n# Input Method Panel Margin\nInputMethodPanelMargin=0\n# Show the version of Fcitx\nShowFcitxVersion=True\n# Show first input method indicator\nShowFirstInputMethodIndicator=True\n# Show Input Method Name When switch input method\nShowInputMethodNameWhenSwitchInFocus=False\n# Show compact input method indicator\nShowCompactInputMethodIndicator=False\n\n[Behavior]\n# Active By Default\nActiveByDefault=True\n# Share Input State\nShareInputState=All\n# Show Input Method When Inactive\nShowInputMethodWhenInactive=True\n# Show Input Method After Input method activated\nShowInputMethodAfterActivated=True\n# Auto save period in seconds\nAutoSavePeriod=5\n# Show Input Method Hint After Input method activated\nShowInputMethodHint=True\n# Show Input Method Hint When trigger input method\nShowInputMethodHintTriggerOnly=False\n# Show Input Method Hint Delay in milliseconds\nShowInputMethodHintDelay=500\n# Show first input method indicator\nShowFirstInputMethodIndicator=True\n# Show Current Input Method Name\nShowCurrentInputMethod=True\n# Show Input Method Name When switch input method\nShowInputMethodNameWhenSwitchInFocus=False\n# Show compact input method indicator\nShowCompactInputMethodIndicator=False\n# Show emoji icon on input method indicator\nShowEmojiOnPanel=False\n# Use custom font\nUseCustomFont=False\n# Font for input method indicator\nCustomFont=" > /config/xdg/config/fcitx/config && \
