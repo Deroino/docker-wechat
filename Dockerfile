@@ -89,6 +89,13 @@ systemd-resolve:x:103:
 messagebus:x:106:
 GROUP_EOF
 
+# 创建假的 systemctl 和 policy-rc.d，防止任何包安装时尝试启动 systemd 服务
+RUN printf '#!/bin/sh\nexit 0' > /usr/sbin/policy-rc.d && \
+    chmod +x /usr/sbin/policy-rc.d && \
+    printf '#!/bin/sh\nexit 0' > /usr/local/bin/systemctl && \
+    chmod +x /usr/local/bin/systemctl && \
+    mkdir -p /run
+
 # 配置APT源。默认使用阿里云镜像，避免构建时因地理位置探测误判而切回官方源。
 RUN set -eux; \
     if [ "$APT_MIRROR_MODE" = "cn" ]; then \
@@ -139,11 +146,6 @@ COPY temp-packages/. /tmp/packages/
 RUN echo "keyboard-configuration keyboard-configuration/layoutcode string cn" | debconf-set-selections
 RUN \
     set -eux; \
-    # 创建假的 systemctl 脚本，防止包安装时尝试启动 systemd 服务
-    printf '#!/bin/sh\nexit 0' > /usr/sbin/policy-rc.d && \
-    chmod +x /usr/sbin/policy-rc.d && \
-    printf '#!/bin/sh\nexit 0' > /usr/local/bin/systemctl && \
-    chmod +x /usr/local/bin/systemctl && \
     # 安装 fcitx 输入法框架（使用 --no-install-recommends 避免 systemd 依赖）
     apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y --no-install-recommends fcitx fcitx-config-gtk fcitx-frontend-all && \
     # 卸载原有 ibus 输入法框架
@@ -166,8 +168,6 @@ RUN \
     # 解决可能缺少的依赖
     apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y --no-install-recommends libqt5qml5 libqt5quick5 libqt5quickwidgets5 qml-module-qtquick2 && \
     apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y --no-install-recommends libgsettings-qt1 && \
-    # 清理假的 systemctl
-    rm -f /usr/local/bin/systemctl /usr/sbin/policy-rc.d && \
     # 设置默认输入法为 fcitx 并将搜狗输入法设为默认配置文件
     cp /usr/share/applications/fcitx.desktop /etc/xdg/autostart/ && \
     im-config -n fcitx && \
