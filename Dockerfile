@@ -188,9 +188,9 @@ RUN \
     # 安装 im-config（输入法配置工具，fcitx 需要它）
     (apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y --no-install-recommends im-config 2>&1 || true); \
     (dpkg --configure -a 2>&1 || true); \
-    # 修复所有可能的依赖问题
-    (apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-broken install -y 2>&1 || true); \
     } && \
+    # 修复所有可能的依赖问题（在主 shell 中执行，确保 sogoupinyin 依赖被解决）
+    apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-broken install -y || true && \
     # 设置默认输入法为 fcitx 并将搜狗输入法设为默认配置文件
     cp /usr/share/applications/fcitx.desktop /etc/xdg/autostart/ && \
     (which im-config >/dev/null 2>&1 && im-config -n fcitx || true) && \
