@@ -49,12 +49,12 @@ jobs:
         mkdir -p temp-packages
 
         # 下载AMD64架构的安装包
-        wget -O temp-packages/sogou-pinyin-amd64.deb "https://github.com/xiaoheiCat/docker-wechat-sogou-pinyin/releases/latest/download/sogou-pinyin-amd64.deb"
-        wget -O temp-packages/wechat-amd64.deb "https://dldir1v6.qq.com/weixin/Universal/Linux/WeChatLinux_x86_64.deb"
+        wget --no-check-certificate --tries=3 --waitretry=5 -O temp-packages/sogou-pinyin-amd64.deb "https://github.com/xiaoheiCat/docker-wechat-sogou-pinyin/releases/latest/download/sogou-pinyin-amd64.deb"
+        wget --no-check-certificate --tries=3 --waitretry=5 -O temp-packages/wechat-amd64.deb "https://dldir1v6.qq.com/weixin/Universal/Linux/WeChatLinux_x86_64.deb"
 
         # 下载ARM64架构的安装包
-        wget -O temp-packages/sogou-pinyin-arm64.deb "https://github.com/xiaoheiCat/docker-wechat-sogou-pinyin/releases/latest/download/sogou-pinyin-arm64.deb"
-        wget -O temp-packages/wechat-arm64.deb "https://dldir1v6.qq.com/weixin/Universal/Linux/WeChatLinux_arm64.deb"
+        wget --no-check-certificate --tries=3 --waitretry=5 -O temp-packages/sogou-pinyin-arm64.deb "https://github.com/xiaoheiCat/docker-wechat-sogou-pinyin/releases/latest/download/sogou-pinyin-arm64.deb"
+        wget --no-check-certificate --tries=3 --waitretry=5 -O temp-packages/wechat-arm64.deb "https://dldir1v6.qq.com/weixin/Universal/Linux/WeChatLinux_arm64.deb"
 
     - name: Build and push multi-architecture Docker image
       id: build-image
