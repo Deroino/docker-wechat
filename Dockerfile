@@ -12,9 +12,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # 确保基础系统文件存在，避免安装依赖时 useradd/adduser 失败
 # 基础镜像可能缺少这些文件，需要创建完整的系统用户数据库
-RUN set -eux; \
-    # 创建 /etc/passwd，包含必要的系统用户
-    cat > /etc/passwd << 'PASSWD_EOF'
+
+# 创建 /etc/passwd，包含必要的系统用户
+RUN cat > /etc/passwd << 'PASSWD_EOF'
 root:x:0:0:root:/root:/bin/bash
 daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
 bin:x:2:2:bin:/bin:/usr/sbin/nologin
@@ -39,9 +39,9 @@ systemd-resolve:x:102:103:systemd Resolver,,,:/run/systemd:/usr/sbin/nologin
 systemd-timesync:x:103:104:systemd Time Synchronization,,,:/run/systemd:/usr/sbin/nologin
 messagebus:x:104:106::/nonexistent:/usr/sbin/nologin
 PASSWD_EOF
-    && \
-    # 创建 /etc/group，包含必要的系统组
-    cat > /etc/group << 'GROUP_EOF'
+
+# 创建 /etc/group，包含必要的系统组
+RUN cat > /etc/group << 'GROUP_EOF'
 root:x:0:
 daemon:x:1:
 bin:x:2:
