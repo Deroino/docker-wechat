@@ -177,6 +177,9 @@ RUN \
     dpkg --configure -a || true; \
     apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y --no-install-recommends libgsettings-qt1 || true; \
     dpkg --configure -a || true; \
+    # 安装 im-config（输入法配置工具，fcitx 需要它）
+    apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y --no-install-recommends im-config || true; \
+    dpkg --configure -a || true; \
     } && \
     # 设置默认输入法为 fcitx 并将搜狗输入法设为默认配置文件
     cp /usr/share/applications/fcitx.desktop /etc/xdg/autostart/ && \
