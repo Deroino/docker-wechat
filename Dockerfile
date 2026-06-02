@@ -139,8 +139,13 @@ COPY temp-packages/. /tmp/packages/
 RUN echo "keyboard-configuration keyboard-configuration/layoutcode string cn" | debconf-set-selections
 RUN \
     set -eux; \
-    # 安装 fcitx 输入法框架
-    apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y fcitx fcitx-config-gtk fcitx-frontend-all && \
+    # 创建假的 systemctl 脚本，防止包安装时尝试启动 systemd 服务
+    printf '#!/bin/sh\nexit 0' > /usr/sbin/policy-rc.d && \
+    chmod +x /usr/sbin/policy-rc.d && \
+    printf '#!/bin/sh\nexit 0' > /usr/local/bin/systemctl && \
+    chmod +x /usr/local/bin/systemctl && \
+    # 安装 fcitx 输入法框架（使用 --no-install-recommends 避免 systemd 依赖）
+    apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y --no-install-recommends fcitx fcitx-config-gtk fcitx-frontend-all && \
     # 卸载原有 ibus 输入法框架
     apt-get purge -y ibus && \
     # 根据目标平台安装对应架构的搜狗拼音输入法
@@ -157,11 +162,12 @@ RUN \
     if [ ! -s "$SOGOU_DEB" ]; then \
         curl -fL --retry 3 --retry-delay 2 -o "$SOGOU_DEB" "$SOGOU_URL"; \
     fi && \
-    dpkg --ignore-depends=lsb-core -i "$SOGOU_DEB" && \
+    dpkg --ignore-depends=lsb-core -i "$SOGOU_DEB" || apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 -f install -y --no-install-recommends && \
     # 解决可能缺少的依赖
-    apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y libqt5qml5 libqt5quick5 libqt5quickwidgets5 qml-module-qtquick2 && \
-    apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y libgsettings-qt1 && \
-    apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 -f install -y && \
+    apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y --no-install-recommends libqt5qml5 libqt5quick5 libqt5quickwidgets5 qml-module-qtquick2 && \
+    apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y --no-install-recommends libgsettings-qt1 && \
+    # 清理假的 systemctl
+    rm -f /usr/local/bin/systemctl /usr/sbin/policy-rc.d && \
     # 设置默认输入法为 fcitx 并将搜狗输入法设为默认配置文件
     cp /usr/share/applications/fcitx.desktop /etc/xdg/autostart/ && \
     im-config -n fcitx && \
