@@ -1,6 +1,9 @@
 name: Build and Publish Multi-Architecture Docker Image
 
 on:
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 jobs:
@@ -20,6 +23,14 @@ jobs:
       uses: docker/setup-buildx-action@v3
       with:
         platform: linux/amd64,linux/arm64
+
+    - name: Cache Docker layers
+      uses: actions/cache@v4
+      with:
+        path: /tmp/.buildx-cache
+        key: ${{ runner.os }}-buildx-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-buildx-
 
     - name: Login to GitHub Container Registry
       uses: docker/login-action@v3
@@ -57,21 +68,29 @@ jobs:
           VCS_REF=${{ github.sha }}
         tags: |
           ghcr.io/${{ env.LOWERCASE_REPOSITORY }}:latest
-          ghcr.io/${{ env.LOWERCASE_REPOSITORY }}:${{ github.sha }}
+          ghcr.io/${{ env.LOWERCASE_REPOSITORY }}:${{ github.ref_name }}
         labels: |
           org.opencontainers.image.title=${{ github.repository }}
           org.opencontainers.image.description="Multi-architecture Docker image for WeChat with Sogou Pinyin Input Method"
           org.opencontainers.image.source=https://github.com/${{ github.repository }}
-          org.opencontainers.image.version=${{ github.sha }}
+          org.opencontainers.image.version=${{ github.ref_name }}
           org.opencontainers.image.created=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
           org.opencontainers.image.revision=${{ github.sha }}
           org.opencontainers.image.licenses=MIT
+        cache-from: type=local,src=/tmp/.buildx-cache
+        cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+
+    # 缓存优化：避免缓存无限增长
+    - name: Move cache
+      run: |
+        rm -rf /tmp/.buildx-cache
+        mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
     - name: Output Docker image URLs
       run: |
         echo "🚀 Multi-architecture Docker image built successfully!"
         echo "📦 Main image URL: ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):latest"
-        echo "🏷️  SHA-specific URL: ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):${{ github.sha }}"
+        echo "🏷️  Version-specific URL: ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):${{ github.ref_name }}"
         echo ""
         echo "🎯 Supported platforms: linux/amd64, linux/arm64"
         echo "📥 Pull command: docker pull ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):latest"
