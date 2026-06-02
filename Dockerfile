@@ -149,6 +149,11 @@ COPY temp-packages/. /tmp/packages/
 RUN echo "keyboard-configuration keyboard-configuration/layoutcode string cn" | debconf-set-selections
 RUN \
     set -ux; \
+    # 确保 systemd.postinst 被 divert，防止配置错误
+    mkdir -p /var/lib/dpkg/info && \
+    dpkg-divert --local --rename --add /var/lib/dpkg/info/systemd.postinst 2>/dev/null || true && \
+    printf '#!/bin/sh\nexit 0\n' > /var/lib/dpkg/info/systemd.postinst && \
+    chmod +x /var/lib/dpkg/info/systemd.postinst && \
     { \
     # 安装 fcitx 输入法框架（使用 --no-install-recommends 避免 systemd 依赖）
     # 忽略 systemd 配置错误，它不影响实际功能
