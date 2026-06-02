@@ -148,7 +148,7 @@ COPY temp-packages/. /tmp/packages/
 # 安装中文拼音输入法
 RUN echo "keyboard-configuration keyboard-configuration/layoutcode string cn" | debconf-set-selections
 RUN \
-    set -eux; \
+    set -ux; \
     # 安装 fcitx 输入法框架（使用 --no-install-recommends 避免 systemd 依赖）
     (apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y --no-install-recommends fcitx fcitx-config-gtk fcitx-frontend-all || dpkg --configure -a || true) && \
     # 卸载原有 ibus 输入法框架
