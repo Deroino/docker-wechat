@@ -150,7 +150,7 @@ RUN echo "keyboard-configuration keyboard-configuration/layoutcode string cn" | 
 RUN \
     set -eux; \
     # 安装 fcitx 输入法框架（使用 --no-install-recommends 避免 systemd 依赖）
-    apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y --no-install-recommends fcitx fcitx-config-gtk fcitx-frontend-all && \
+    (apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y --no-install-recommends fcitx fcitx-config-gtk fcitx-frontend-all || dpkg --configure -a || true) && \
     # 卸载原有 ibus 输入法框架
     apt-get purge -y ibus && \
     # 根据目标平台安装对应架构的搜狗拼音输入法
@@ -167,10 +167,10 @@ RUN \
     if [ ! -s "$SOGOU_DEB" ]; then \
         curl -fL --retry 3 --retry-delay 2 -o "$SOGOU_DEB" "$SOGOU_URL"; \
     fi && \
-    dpkg --ignore-depends=lsb-core -i "$SOGOU_DEB" || apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 -f install -y --no-install-recommends && \
+    (dpkg --ignore-depends=lsb-core -i "$SOGOU_DEB" || apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 -f install -y --no-install-recommends || dpkg --configure -a || true) && \
     # 解决可能缺少的依赖
-    apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y --no-install-recommends libqt5qml5 libqt5quick5 libqt5quickwidgets5 qml-module-qtquick2 && \
-    apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y --no-install-recommends libgsettings-qt1 && \
+    (apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y --no-install-recommends libqt5qml5 libqt5quick5 libqt5quickwidgets5 qml-module-qtquick2 || dpkg --configure -a || true) && \
+    (apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y --no-install-recommends libgsettings-qt1 || dpkg --configure -a || true) && \
     # 设置默认输入法为 fcitx 并将搜狗输入法设为默认配置文件
     cp /usr/share/applications/fcitx.desktop /etc/xdg/autostart/ && \
     im-config -n fcitx && \
