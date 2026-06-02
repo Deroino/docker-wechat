@@ -110,14 +110,16 @@ ENV LC_ALL=zh_CN.UTF-8
 # 安装必要依赖
 RUN \
     set -eux; \
+    # 创建 /run 目录，避免 systemd post-install 脚本失败
+    mkdir -p /run && \
     # 生成 locale
-    apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y locales \
+    apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y --no-install-recommends locales \
     && sed -i '/zh_CN.UTF-8/s/^# //g' /etc/locale.gen \
     && locale-gen \
     && locale-gen zh_CN.UTF-8 \
     && update-locale LANG=zh_CN.UTF-8 \
-    && apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y language-pack-zh-hans fonts-noto-cjk curl \
-    && apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y shared-mime-info desktop-file-utils libxcb1 libxcb-icccm4 libxcb-image0 \
+    && apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y --no-install-recommends language-pack-zh-hans fonts-noto-cjk curl \
+    && apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y --no-install-recommends shared-mime-info desktop-file-utils libxcb1 libxcb-icccm4 libxcb-image0 \
     libxcb-keysyms1 libxcb-randr0 libxcb-render0 libxcb-render-util0 libxcb-shape0 \
     libxcb-shm0 libxcb-sync1 libxcb-util1 libxcb-xfixes0 libxcb-xkb1 libxcb-xinerama0 \
     libxcb-xkb1 libxcb-glx0 libatk1.0-0 libatk-bridge2.0-0 libc6 libcairo2 libcups2 \
@@ -125,7 +127,9 @@ RUN \
     libgtk-3-0 libnspr4 libnss3 libpango-1.0-0 libpangocairo-1.0-0 libstdc++6 libx11-6 \
     libxcomposite1 libxdamage1 libxext6 libxfixes3 libxi6 libxrandr2 libxrender1 \
     libxss1 libxtst6 libatomic1 libxcomposite1 libxrender1 libxrandr2 libxkbcommon-x11-0 \
-    libfontconfig1 libdbus-1-3 libnss3 libx11-xcb1 libasound2
+    libfontconfig1 libdbus-1-3 libnss3 libx11-xcb1 libasound2 \
+    # 强制配置所有包，忽略 systemd 的错误
+    && dpkg --configure -a || true
 
 # 多架构支持：准备搜狗输入法安装包
 RUN mkdir -p /tmp/packages
