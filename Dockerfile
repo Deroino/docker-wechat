@@ -10,6 +10,9 @@ ARG WECHAT_AMD64_URL=https://dldir1v6.qq.com/weixin/Universal/Linux/WeChatLinux_
 ARG WECHAT_ARM64_URL=https://dldir1v6.qq.com/weixin/Universal/Linux/WeChatLinux_arm64.deb
 ENV DEBIAN_FRONTEND=noninteractive
 
+# 确保基础系统文件存在，避免安装依赖时 useradd 失败
+RUN touch /etc/passwd && echo "root:x:0:0:root:/root:/bin/bash" > /etc/passwd
+
 # 配置APT源。默认使用阿里云镜像，避免构建时因地理位置探测误判而切回官方源。
 RUN set -eux; \
     if [ "$APT_MIRROR_MODE" = "cn" ]; then \
@@ -23,12 +26,21 @@ RUN set -eux; \
     apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 update && \
     apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 install -y curl
 
+# 设置 locale 环境变量，避免 perl 警告
+ENV LANG=zh_CN.UTF-8
+ENV LANGUAGE=zh_CN:zh
+ENV LC_ALL=zh_CN.UTF-8
+
 # 安装必要依赖
 RUN \
     set -eux; \
-    # 安装系统语言包、字体等依赖
-    apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y locales language-pack-zh-hans fonts-noto-cjk curl \
+    # 生成 locale
+    apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y locales \
+    && sed -i '/zh_CN.UTF-8/s/^# //g' /etc/locale.gen \
+    && locale-gen \
     && locale-gen zh_CN.UTF-8 \
+    && update-locale LANG=zh_CN.UTF-8 \
+    && apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y language-pack-zh-hans fonts-noto-cjk curl \
     && apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y shared-mime-info desktop-file-utils libxcb1 libxcb-icccm4 libxcb-image0 \
     libxcb-keysyms1 libxcb-randr0 libxcb-render0 libxcb-render-util0 libxcb-shape0 \
     libxcb-shm0 libxcb-sync1 libxcb-util1 libxcb-xfixes0 libxcb-xkb1 libxcb-xinerama0 \
@@ -37,7 +49,7 @@ RUN \
     libgtk-3-0 libnspr4 libnss3 libpango-1.0-0 libpangocairo-1.0-0 libstdc++6 libx11-6 \
     libxcomposite1 libxdamage1 libxext6 libxfixes3 libxi6 libxrandr2 libxrender1 \
     libxss1 libxtst6 libatomic1 libxcomposite1 libxrender1 libxrandr2 libxkbcommon-x11-0 \
-    libfontconfig1 libdbus-1-3 libnss3 libx11-xcb1 libasound2 lsb-release
+    libfontconfig1 libdbus-1-3 libnss3 libx11-xcb1 libasound2
 
 # 多架构支持：准备搜狗输入法安装包
 RUN mkdir -p /tmp/packages
