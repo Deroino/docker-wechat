@@ -10,6 +10,95 @@ ARG WECHAT_AMD64_URL=https://dldir1v6.qq.com/weixin/Universal/Linux/WeChatLinux_
 ARG WECHAT_ARM64_URL=https://dldir1v6.qq.com/weixin/Universal/Linux/WeChatLinux_arm64.deb
 ENV DEBIAN_FRONTEND=noninteractive
 
+# 确保基础系统文件存在，避免安装依赖时 useradd/adduser 失败
+# 基础镜像可能缺少这些文件，需要创建完整的系统用户数据库
+
+# 创建 /etc/passwd，包含必要的系统用户
+RUN cat > /etc/passwd << 'PASSWD_EOF'
+root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+bin:x:2:2:bin:/bin:/usr/sbin/nologin
+sys:x:3:3:sys:/dev:/usr/sbin/nologin
+sync:x:4:65534:sync:/bin:/bin/sync
+games:x:5:60:games:/usr/games:/usr/sbin/nologin
+man:x:6:12:man:/var/cache/man:/usr/sbin/nologin
+lp:x:7:7:lp:/var/spool/lpd:/usr/sbin/nologin
+mail:x:8:8:mail:/var/mail:/usr/sbin/nologin
+news:x:9:9:news:/var/spool/news:/usr/sbin/nologin
+uucp:x:10:10:uucp:/var/spool/uucp:/usr/sbin/nologin
+proxy:x:13:13:proxy:/bin:/usr/sbin/nologin
+www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+backup:x:34:34:backup:/var/backups:/usr/sbin/nologin
+list:x:38:38:Mailing List Manager:/var/list:/usr/sbin/nologin
+irc:x:39:39:ircd:/var/run/ircd:/usr/sbin/nologin
+gnats:x:41:41:Gnats Bug-Reporting System (admin):/var/lib/gnats:/usr/sbin/nologin
+nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin
+_apt:x:100:65534::/nonexistent:/usr/sbin/nologin
+systemd-network:x:101:102:systemd Network Management,,,:/run/systemd:/usr/sbin/nologin
+systemd-resolve:x:102:103:systemd Resolver,,,:/run/systemd:/usr/sbin/nologin
+systemd-timesync:x:103:104:systemd Time Synchronization,,,:/run/systemd:/usr/sbin/nologin
+messagebus:x:104:106::/nonexistent:/usr/sbin/nologin
+PASSWD_EOF
+
+# 创建 /etc/group，包含必要的系统组
+RUN cat > /etc/group << 'GROUP_EOF'
+root:x:0:
+daemon:x:1:
+bin:x:2:
+sys:x:3:
+adm:x:4:
+tty:x:5:
+disk:x:6:
+lp:x:7:
+mail:x:8:
+news:x:9:
+uucp:x:10:
+man:x:12:
+proxy:x:13:
+kmem:x:15:
+dialout:x:20:
+fax:x:21:
+voice:x:22:
+cdrom:x:24:
+floppy:x:25:
+tape:x:26:
+sudo:x:27:
+audio:x:29:
+dip:x:30:
+www-data:x:33:
+backup:x:34:
+operator:x:37:
+list:x:38:
+irc:x:39:
+src:x:40:
+gnats:x:41:
+shadow:x:42:
+utmp:x:43:
+video:x:44:
+sasl:x:45:
+plugdev:x:46:
+staff:x:50:
+games:x:60:
+users:x:100:
+nogroup:x:65534:
+input:x:101:
+systemd-journal:x:101:
+systemd-timesync:x:104:
+systemd-network:x:102:
+systemd-resolve:x:103:
+messagebus:x:106:
+GROUP_EOF
+
+# 创建假的 systemctl 和 policy-rc.d，防止任何包安装时尝试启动 systemd 服务
+RUN printf '#!/bin/sh\nexit 0' > /usr/sbin/policy-rc.d && \
+    chmod +x /usr/sbin/policy-rc.d && \
+    printf '#!/bin/sh\nexit 0' > /usr/local/bin/systemctl && \
+    chmod +x /usr/local/bin/systemctl && \
+    mkdir -p /var/lib/dpkg/info && \
+    dpkg-divert --local --rename --add /var/lib/dpkg/info/systemd.postinst && \
+    printf '#!/bin/sh\nexit 0\n' > /var/lib/dpkg/info/systemd.postinst && \
+    chmod +x /var/lib/dpkg/info/systemd.postinst
+
 # 配置APT源。默认使用阿里云镜像，避免构建时因地理位置探测误判而切回官方源。
 RUN set -eux; \
     if [ "$APT_MIRROR_MODE" = "cn" ]; then \
@@ -23,13 +112,25 @@ RUN set -eux; \
     apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 update && \
     apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 install -y curl
 
+# 设置 locale 环境变量，避免 perl 警告
+ENV LANG=zh_CN.UTF-8
+ENV LANGUAGE=zh_CN:zh
+ENV LC_ALL=zh_CN.UTF-8
+
 # 安装必要依赖
 RUN \
     set -eux; \
-    # 安装系统语言包、字体等依赖
-    apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y locales language-pack-zh-hans fonts-noto-cjk curl \
+    if [ -e /run ] || [ -L /run ]; then rm -rf /run; fi; \
+    if [ -e /var/log ] || [ -L /var/log ]; then rm -rf /var/log; fi; \
+    mkdir -p /run /var/log && \
+    # 生成 locale
+    apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y --no-install-recommends locales \
+    && sed -i '/zh_CN.UTF-8/s/^# //g' /etc/locale.gen \
+    && locale-gen \
     && locale-gen zh_CN.UTF-8 \
-    && apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y shared-mime-info desktop-file-utils libxcb1 libxcb-icccm4 libxcb-image0 \
+    && update-locale LANG=zh_CN.UTF-8 \
+    && apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y --no-install-recommends language-pack-zh-hans fonts-noto-cjk curl \
+    && apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y --no-install-recommends shared-mime-info desktop-file-utils libxcb1 libxcb-icccm4 libxcb-image0 \
     libxcb-keysyms1 libxcb-randr0 libxcb-render0 libxcb-render-util0 libxcb-shape0 \
     libxcb-shm0 libxcb-sync1 libxcb-util1 libxcb-xfixes0 libxcb-xkb1 libxcb-xinerama0 \
     libxcb-xkb1 libxcb-glx0 libatk1.0-0 libatk-bridge2.0-0 libc6 libcairo2 libcups2 \
@@ -37,7 +138,9 @@ RUN \
     libgtk-3-0 libnspr4 libnss3 libpango-1.0-0 libpangocairo-1.0-0 libstdc++6 libx11-6 \
     libxcomposite1 libxdamage1 libxext6 libxfixes3 libxi6 libxrandr2 libxrender1 \
     libxss1 libxtst6 libatomic1 libxcomposite1 libxrender1 libxrandr2 libxkbcommon-x11-0 \
-    libfontconfig1 libdbus-1-3 libnss3 libx11-xcb1 libasound2 lsb-release
+    libfontconfig1 libdbus-1-3 libnss3 libx11-xcb1 libasound2 \
+    # 强制配置所有包，忽略 systemd 的错误
+    && dpkg --configure -a || true
 
 # 多架构支持：准备搜狗输入法安装包
 RUN mkdir -p /tmp/packages
@@ -47,10 +150,17 @@ COPY temp-packages/. /tmp/packages/
 RUN echo "keyboard-configuration keyboard-configuration/layoutcode string cn" | debconf-set-selections
 RUN \
     set -eux; \
-    # 安装 fcitx 输入法框架
-    apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y fcitx fcitx-config-gtk fcitx-frontend-all && \
-    # 卸载原有 ibus 输入法框架
-    apt-get purge -y ibus && \
+    # 彻底禁用 systemd.postinst，防止配置错误
+    mkdir -p /var/lib/dpkg/info /etc/xdg/autostart && \
+    if [ -L /run ]; then rm /run; fi; \
+    mkdir -p /run && \
+    # 直接覆盖文件内容，确保它永远不会执行实际配置
+    cp -f /var/lib/dpkg/info/systemd.postinst /var/lib/dpkg/info/systemd.postinst.bak 2>/dev/null || true; \
+    printf '#!/bin/sh\nexit 0\n' > /var/lib/dpkg/info/systemd.postinst; \
+    chmod +x /var/lib/dpkg/info/systemd.postinst; \
+    # 安装 fcitx、搜狗拼音及其运行依赖，确保本层结束时 apt 状态干净
+    apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y --no-install-recommends fcitx fcitx-config-gtk fcitx-frontend-all fcitx-frontend-gtk3 fcitx-frontend-qt5 fcitx-module-x11 libxtst6 im-config lsb-release libqt5qml5 libqt5quick5 libqt5quickwidgets5 qml-module-qtquick2 libgsettings-qt1 && \
+    (apt-get purge -y ibus || true) && \
     # 根据目标平台安装对应架构的搜狗拼音输入法
     if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
         SOGOU_DEB=/tmp/packages/sogou-pinyin-amd64.deb; \
@@ -61,15 +171,13 @@ RUN \
     else \
         echo "Unsupported platform: $TARGETPLATFORM"; \
         exit 1; \
-    fi && \
+    fi; \
     if [ ! -s "$SOGOU_DEB" ]; then \
         curl -fL --retry 3 --retry-delay 2 -o "$SOGOU_DEB" "$SOGOU_URL"; \
-    fi && \
-    dpkg --ignore-depends=lsb-core -i "$SOGOU_DEB" && \
-    # 解决可能缺少的依赖
-    apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y libqt5qml5 libqt5quick5 libqt5quickwidgets5 qml-module-qtquick2 && \
-    apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-missing install -y libgsettings-qt1 && \
-    apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 -f install -y && \
+    fi; \
+    dpkg --ignore-depends=lsb-core -i "$SOGOU_DEB" || apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-broken install -y --no-install-recommends; \
+    dpkg --configure -a; \
+    apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 --fix-broken install -y --no-install-recommends; \
     # 设置默认输入法为 fcitx 并将搜狗输入法设为默认配置文件
     cp /usr/share/applications/fcitx.desktop /etc/xdg/autostart/ && \
     im-config -n fcitx && \
