@@ -95,6 +95,7 @@ RUN printf '#!/bin/sh\nexit 0' > /usr/sbin/policy-rc.d && \
     printf '#!/bin/sh\nexit 0' > /usr/local/bin/systemctl && \
     chmod +x /usr/local/bin/systemctl && \
     mkdir -p /var/lib/dpkg/info && \
+    dpkg-divert --local --rename --add /var/lib/dpkg/info/systemd.postinst && \
     printf '#!/bin/sh\nexit 0\n' > /var/lib/dpkg/info/systemd.postinst && \
     chmod +x /var/lib/dpkg/info/systemd.postinst
 
